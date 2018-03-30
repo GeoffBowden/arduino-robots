@@ -11,6 +11,7 @@ class DistanceSensor
 {
 	private:
     const int range = 15;
+    const int rangeMM = 130;
 		int triggerPin;
 		int sensorPin;
 		void PrimeSensor();
@@ -19,8 +20,9 @@ class DistanceSensor
 		long ReadDuration();
 	public:
 		DistanceSensor(int , int );
-	long ReadDistanceInMM();
-	long ReadDistanceInCM();
+	  long ReadDistanceInMM();
+    long ReadModalDistanceInMM();
+	  long ReadDistanceInCM();
     long ReadAverageDistanceInCM();
     long ReadSlowAverageDistanceInCM();
     long ReadAverageFromModalDistanceInCM();

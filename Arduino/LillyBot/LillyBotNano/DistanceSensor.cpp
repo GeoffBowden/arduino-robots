@@ -70,14 +70,34 @@ long DistanceSensor::ReadAverageDistanceInCM()
 }
 long DistanceSensor::ReadModalDistanceInCM()
 {
+  Serial.println( "ReadModalDistanceInCM" );
   long readings[READING_COUNT];
   long sum = 0;
   for( int i = 0; i < READING_COUNT; i ++ )
   {
     long reading = ReadDistanceInCM();
+    Serial.print( reading ) ; Serial.print( " " );
+    
     readings[i] = reading;
   } 
   long ave = MathsFunctions::GetModal( readings );
+  Serial.print( "Res=" ); Serial.println( ave );
+  return ave;
+}
+long DistanceSensor::ReadModalDistanceInMM()
+{
+  Serial.println( "ReadModalDistanceInCM" );
+  long readings[READING_COUNT];
+  long sum = 0;
+  for( int i = 0; i < READING_COUNT; i ++ )
+  {
+    long reading = ReadDistanceInMM();
+    Serial.print( reading ) ; Serial.print( " " );
+    
+    readings[i] = reading;
+  } 
+  long ave = MathsFunctions::GetModal( readings );
+  Serial.print( "Res=" ); Serial.println( ave );
   return ave;
 }
 long DistanceSensor::ReadSlowAverageDistanceInCM()
@@ -137,7 +157,7 @@ void DistanceSensor::SetTriggerPin()
 
 boolean DistanceSensor::IsExit()
 {
-  int dist = ReadAverageFromModalDistanceInCM(); //ReadModalDistanceInCM();
+  int dist = ReadModalDistanceInCM(); //ReadModalDistanceInCM();
   Serial.print( "distance: " );
   Serial.println(dist);
 	if( dist > range )

@@ -3,6 +3,7 @@
 #include "MazeNodes.h"
 #include "RobotMaths.h"
 #include "WaggleDance.h"
+#include "WallFinder.h"
 
 LillyDrive *drive ;
 DistanceSensor *distanceSensor; // ( 4, 3 );
@@ -21,22 +22,23 @@ void loop()
 //  MathsTest();
 //  ExitCheck();
 //  DistanceCheck();
-//  TestWallFinding();
 //  TestCircling();
+//  TestWallFinding();
 //  TestNodeDiscovery();
+
   SolveMaze();
 }
 
 void SolveMaze()
 {
-  delay( 1000 ) ;  
-  StartingNode* maze = new StartingNode(drive, distanceSensor);
-  maze->DiscoverNode();
-  maze->SolveMaze();
-  maze->~StartingNode();
-  delay( 1000 ) ;
   WaggleDance::Jig(drive);  
-  delay( 2000 ) ;
+  delay( 3000 ) ;  
+  Maze* maze = new Maze(distanceSensor, drive);
+  maze->SolveMaze();
+  maze->~Maze();
+  delay( 500 ) ;
+  WaggleDance::Jig(drive);  
+  delay( 1500 ) ;
 }
 
 
@@ -100,8 +102,9 @@ void ExitCheck()
 
 void DistanceCheck()
 {
-  int cm = distanceSensor->ReadDistanceInCM();
+  int cm = distanceSensor->ReadAverageFromModalDistanceInCM();
   Serial.println( cm );
+  WaggleDance::ShowNumber( drive, cm );
   delay( 500 );  
 }
 
@@ -114,11 +117,11 @@ void TestNodeDiscovery()
 void TestWallFinding()
 {
   delay( 1000 );
-  drive->MoveToWall( distanceSensor );
+  WallFinder::MoveToWall( distanceSensor, drive, new MoveToWallKeepingCentred() );
   drive->TurnLeft90Degrees();
   delay( 1000 );
   drive->TurnLeft90Degrees();
-  drive->MoveToWall( distanceSensor );
+  WallFinder::MoveToWall( distanceSensor, drive, new MoveToWallKeepingCentred() );
 }
 
 void TestCircling()
@@ -133,6 +136,11 @@ void TestCircling()
   for( int i = 1; i <= 5; i++ )
   {
     TurnLeft();
+  }
+  Serial.println( "Test right turn" );
+  for( int i = 1; i <= 5; i++ )
+  {
+    TurnRight();
   }
 }
 void TurnLeft()
@@ -159,5 +167,11 @@ void TurnRight()
     drive->TurnRight90Degrees();
     delay( 1500 );
 }
-
+void TestMoveForwards()
+{
+  for( int i = 0; i < 5; i++ )
+  {
+    drive->ForwardsOneTurn( );
+  }
+}
 

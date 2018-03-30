@@ -1,0 +1,21 @@
+#ifndef WAGGLE_DRIVER
+#define WAGGLE_DRIVER
+
+class WaggleDriver
+{
+	public:
+		~WaggleDriver(){};
+		void SmallGestureLeft()=0;
+		void SmallGestureRight()=0;
+		void SmallGestureForward()=0;
+		void SmallGestureBackward()=0;
+		void GestureLeft()=0;
+		void GestureRight()=0;
+		void GestureForward()=0;
+		void GestureBackward()=0;
+};
+
+#endif
+
+
+

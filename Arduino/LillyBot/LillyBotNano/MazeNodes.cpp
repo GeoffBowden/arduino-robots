@@ -1,20 +1,105 @@
 #include "MazeNodes.h"
 #include "WaggleDance.h"
+#include "WallFinder.h"
 ////////////////////////////////////////////////////////////////
 // base node, nuff said
 ////////////////////////////////////////////////////////////////
-BaseNode::BaseNode ( LillyDrive* useDrive, DistanceSensor* useEyes)
+BaseNode::BaseNode ( DistanceSensor* useEyes, LillyDrive* useDrive )
 {
 	this->drive = useDrive;
 	this->eyes = useEyes; 
 	entrance = Unknown;
 }
-void BaseNode::Jig()
+//////////////////////////////////////////////////////////////////
+// root maze node
+//////////////////////////////////////////////////////////////////
+boolean Maze::SolveMaze()
 {
-  this->drive->BackwardsOneMM();
-  delay(50);
-  this->drive->ForwardsOneMM();
+  boolean res = false;
+  for( Direction d = North; d <= West; d=NextDirectionClockwise(d) )
+  {
+    if ( eyes->IsExit() )
+    {
+      WaggleDance::Yes( drive );
+      int distance = WallFinder::MoveToWall( eyes, drive, new MoveToWallKeepingCentred( ) );
+      res = SolveNode () ;
+      if ( res )
+      {
+        return res;
+      }
+      else
+      {
+        drive->TurnRight90Degrees();          
+      }
+    }
+    else
+    {
+      WaggleDance::No( drive );
+      drive->TurnLeft90Degrees();          
+    }
+  }
+  return res;  
 }
+boolean Maze::SolveNode () 
+{
+  Node* node = new Node( eyes, drive);
+  boolean res = node -> SolveMaze() ;
+  node -> ~Node();
+  return res;   
+}
+//////////////////////////////////////////////////////////////////
+boolean Node::SolveMaze()
+{
+  boolean res = false;
+  // solve for left exit
+  drive->TurnLeft90Degrees();
+  if ( eyes->IsExit() )
+  {
+    WaggleDance::Yes( drive );
+    int distance = WallFinder::MoveToWall( eyes, drive, new MoveToWallKeepingCentred( ) );
+    res = SolveNode () ;
+    if ( res )
+    {
+      WaggleDance::Jig(drive);
+      return true;
+    }
+  }
+  else
+  {
+    WaggleDance::No( drive );    
+    drive->TurnRight90Degrees();
+    drive->TurnRight90Degrees();
+  }
+  // else solve for right exit
+  if ( eyes->IsExit() )
+  {
+    WaggleDance::Yes( drive );
+    if (  SolveNode () )
+    {
+      WaggleDance::Jig(drive);
+      return true;
+    }
+    else
+    {
+      drive->TurnLeft90Degrees();
+    }
+  }
+  else
+  {
+    WaggleDance::No( drive );    
+    drive->TurnRight90Degrees();
+  }
+  // return to the old nod
+  WallFinder::MoveToWall( eyes, drive, new MoveToWallKeepingCentred( ) );
+}
+boolean Node::SolveNode () 
+{
+  Node* node = new Node( eyes, drive);
+  boolean res = node -> SolveMaze() ;
+  node -> ~Node();
+  return res;   
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////
 // path gets created 
 // entrance is a direction, if east path runs east to west 
@@ -23,12 +108,12 @@ void BaseNode::Jig()
 // Path.Discover
 // Path.TravelInReverse
 //////////////////////////////////////////////////////////
-Path::Path( LillyDrive* useDrive, DistanceSensor* useEyes, Direction entrance, BaseNode* start ):BaseNode(useDrive, useEyes)
+Path::Path( LillyDrive* useDrive, DistanceSensor* useEyes, Direction entrance, BaseNode* start ):BaseNode(useEyes,useDrive)
 {
 	this->entrance = entrance;
 	this->start = start;
 	this->travelled = false;
-	this->distanceInWheelRevolutions=0;
+	this->distanceInCM=0;
   this->foundEndOfMaze = false;
 }          
 Path::~Path()
@@ -42,7 +127,7 @@ BaseNode* Path::Discover ()
 {
   Serial.println( "discover path" ) ;
   //TODO make move to wall fail, set foundEndOfMaze = true if it does
-	this->distanceInWheelRevolutions=this->drive->MoveToWall( this->eyes );
+	this->distanceInCM=WallFinder::MoveToWall( eyes, drive, new MoveToWallKeepingCentred() );
 	this->travelled = true;
 	// if at end stop
 	this->end = new MazeNode( this->drive, this->eyes, this->entrance, this );
@@ -53,7 +138,7 @@ boolean Path::HasNotBeenTravelled(){ return !this->HasBeenTravelled() ; }
 
 BaseNode* Path::TravelInReverse()
 {
-	this->drive->MoveToWall( this->eyes );
+	WallFinder::MoveToWall( this->eyes, this->drive, new MoveToWallKeepingCentred() );
 	return this->start;
 }
 
@@ -77,7 +162,7 @@ boolean Path::SolveMaze()
 // does a quarter turn. therefore discovers up to four paths and ends
 // facing in the same direction as it started. 
 //////////////////////////////////////////////////////////
-StartingNode::StartingNode ( LillyDrive* useDrive, DistanceSensor* useEyes ):BaseNode(useDrive, useEyes){ entrance = North;}
+StartingNode::StartingNode ( LillyDrive* useDrive, DistanceSensor* useEyes ):BaseNode(useEyes, useDrive){ entrance = North;}
 StartingNode::~StartingNode ( )
 {
   if ( northExit != NULL )
@@ -282,9 +367,10 @@ boolean StartingNode::SolveMaze()
 // Maze mode entrance is the direction to exit. a maze node is always created by a path?
 // DiscoverNode
 //////////////////////////////////////////////////////////
-MazeNode::MazeNode ( LillyDrive* useDrive, DistanceSensor* useEyes, Direction entrance, Path* EntrancePath ):BaseNode(useDrive, useEyes)
+MazeNode::MazeNode ( LillyDrive* useDrive, DistanceSensor* useEyes, Direction entrance, Path* entrancePath ):BaseNode( useEyes, useDrive )
 { 
 	this->entrance = entrance;
+  this->entrancePath = entrancePath;
 }
 MazeNode::~MazeNode()
 {
@@ -347,7 +433,7 @@ boolean MazeNode::NodeIsComplete()
 }
 boolean MazeNode::SolveMaze()
 {
-  boolean result = false ;
+  boolean foundExit = false ;
   // tries to solve left path
   if ( leftExit != NULL && leftExit->HasNotBeenTravelled() )
   {
@@ -356,7 +442,7 @@ boolean MazeNode::SolveMaze()
     leftExit->Discover();
     Serial.println( "discovered left path" ); 
     Serial.println( "solve left path" ); 
-    result = leftExit->SolveMaze();
+    foundExit = leftExit->SolveMaze();
     Serial.println( "left path solved" ); 
   }
   else
@@ -364,7 +450,7 @@ boolean MazeNode::SolveMaze()
     drive->TurnRight90Degrees();
   }
   // when returns will be facing west path
-  if ( result == false )
+  if ( foundExit == false )
   {
     if ( rightExit != NULL && rightExit->HasNotBeenTravelled() )
     {
@@ -372,7 +458,7 @@ boolean MazeNode::SolveMaze()
       rightExit->Discover();
       Serial.println( "discovered right path" ); 
       Serial.println( "solve right path" ); 
-      result = rightExit->SolveMaze();
+      foundExit = rightExit->SolveMaze();
       // will return facing left so will need one more left turn to face entrance point
       Serial.println( "Right path solved" ); 
       drive->TurnLeft90Degrees();
@@ -385,15 +471,19 @@ boolean MazeNode::SolveMaze()
     }
   }
   // else recover exit
-  if ( ContinueSolving( result ) )
+  if ( foundExit )
+  {
+    return true;
+  }
+  else
   {
     entrancePath->TravelInReverse();
+    return false ;
   }
-  return result ;
 }
 boolean  MazeNode::ContinueSolving ( boolean result )
 {
-  return false; //result == false ;
+  return result == false ;
 }
 //////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////

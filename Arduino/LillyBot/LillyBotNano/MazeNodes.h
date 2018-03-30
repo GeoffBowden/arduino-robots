@@ -15,17 +15,34 @@ class BaseNode
 		LillyDrive* drive;
 		DistanceSensor* eyes;
 		Direction entrance ;
-  protected:
-    void Jig();
 	public:
-	  BaseNode ( LillyDrive* , DistanceSensor* );
+	  BaseNode ( DistanceSensor*, LillyDrive* );
     virtual boolean SolveMaze() = 0;
+};
+
+
+class Maze:public BaseNode
+{
+  private:
+    boolean SolveNode () ;
+  public:
+    Maze ( DistanceSensor* eyes, LillyDrive* drive ):BaseNode ( eyes, drive ){}
+    boolean SolveMaze();
+};
+
+class Node:public BaseNode
+{
+  private:
+    boolean SolveNode () ;
+  public :
+    Node ( DistanceSensor* eyes, LillyDrive* drive ):BaseNode ( eyes, drive ){}
+    boolean SolveMaze();
 };
 
 class Path:public BaseNode
 {
 	private:
-		int distanceInWheelRevolutions;
+		int distanceInCM;
 		BaseNode* start;
 		BaseNode* end;
 		boolean travelled;
